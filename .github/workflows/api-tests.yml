@@ -1,0 +1,48 @@
+name: API Tests
+
+# On every push / PR, and every night at 05:00 UTC: the public API can change or break
+# without any commit here, so the nightly run works as a small API monitor.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  newman:
+    name: Newman - ${{ matrix.run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [api, data]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Run ${{ matrix.run }} collection
+        # Repository secret; if it is not set, run.js falls back to the public demo password
+        env:
+          RB_PASSWORD: ${{ secrets.RB_PASSWORD }}
+        run: npm run test:${{ matrix.run }}
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: newman-${{ matrix.run }}
+          path: reports/
+          if-no-files-found: ignore
+          retention-days: 14

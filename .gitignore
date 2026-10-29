@@ -1,0 +1,18 @@
+# Node
+node_modules/
+
+# Newman output (HTML / JUnit), produced by every run
+reports/
+
+# Postman: never commit an exported environment that contains real values
+*.local.postman_environment.json
+
+# IDEs
+.idea/
+.vscode/
+.settings/
+.project
+
+# OS
+.DS_Store
+Thumbs.db

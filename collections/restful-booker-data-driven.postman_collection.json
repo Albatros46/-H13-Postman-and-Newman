@@ -1,0 +1,224 @@
+{
+  "info": {
+    "_postman_id": "8e5dd9e0-be77-53e7-b3c1-46ee4c577c99",
+    "name": "Restful Booker API - data-driven",
+    "description": "One iteration per row of data/bookings.csv: create, read back, delete. Run: newman run ... -d data/bookings.csv",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Every CSV row is one iteration. The token is fetched once and reused.",
+          "if (!pm.collectionVariables.get('token')) {",
+          "    pm.sendRequest({",
+          "        url: pm.variables.replaceIn('{{baseUrl}}/auth'),",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: { mode: 'raw', raw: JSON.stringify({",
+          "            username: pm.environment.get('username'),",
+          "            password: pm.environment.get('password')",
+          "        }) }",
+          "    }, (err, res) => {",
+          "        if (!err && res.code === 200) {",
+          "            pm.collectionVariables.set('token', res.json().token);",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Runs after EVERY request in this collection.",
+          "const maxMs = Number(pm.environment.get('maxResponseMs') || 3000);",
+          "if (pm.info.requestName !== 'Ping') { // the first call may wake up a sleeping server",
+          "    pm.test(`response time is below ${maxMs} ms`, () => {",
+          "        pm.expect(pm.response.responseTime).to.be.below(maxMs);",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Create booking from data row",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const bookingSchema = {",
+              "    type: 'object',",
+              "    required: ['firstname', 'lastname', 'totalprice', 'depositpaid', 'bookingdates'],",
+              "    additionalProperties: false,",
+              "    properties: {",
+              "        firstname: { type: 'string' },",
+              "        lastname: { type: 'string' },",
+              "        totalprice: { type: 'number' },",
+              "        depositpaid: { type: 'boolean' },",
+              "        bookingdates: {",
+              "            type: 'object',",
+              "            required: ['checkin', 'checkout'],",
+              "            additionalProperties: false,",
+              "            properties: {",
+              "                checkin: { type: 'string', pattern: '^\\\\d{4}-\\\\d{2}-\\\\d{2}$' },",
+              "                checkout: { type: 'string', pattern: '^\\\\d{4}-\\\\d{2}-\\\\d{2}$' }",
+              "            }",
+              "        },",
+              "        additionalneeds: { type: 'string' }",
+              "    }",
+              "};",
+              "",
+              "const row = pm.iterationData.toObject();",
+              "const label = `[${row.case}]`;",
+              "",
+              "pm.test(`${label} status is ${row.expectedStatus}`, () => {",
+              "    pm.response.to.have.status(Number(row.expectedStatus));",
+              "});",
+              "",
+              "const body = pm.response.json();",
+              "pm.test(`${label} response matches the booking schema`, () => {",
+              "    pm.expect(body.booking).to.be.jsonSchema(bookingSchema);",
+              "});",
+              "pm.test(`${label} names, dates and deposit are stored as sent`, () => {",
+              "    pm.expect(body.booking.firstname).to.eql(row.firstname);",
+              "    pm.expect(body.booking.lastname).to.eql(row.lastname);",
+              "    pm.expect(body.booking.depositpaid).to.eql(row.depositpaid === 'true' || row.depositpaid === true);",
+              "    pm.expect(body.booking.bookingdates).to.eql({ checkin: row.checkin, checkout: row.checkout });",
+              "    pm.expect(body.booking.additionalneeds).to.eql(row.additionalneeds);",
+              "});",
+              "",
+              "// expectedPrice can differ from totalprice: that is how a known defect is documented in the data",
+              "const priceTest = row.note ? `${label} ${row.note}` : `${label} price is stored as sent`;",
+              "pm.test(priceTest, () => pm.expect(body.booking.totalprice).to.eql(Number(row.expectedPrice)));",
+              "",
+              "pm.collectionVariables.set('bookingId', body.bookingid);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/booking",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "booking"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"firstname\": \"{{firstname}}\",\n    \"lastname\": \"{{lastname}}\",\n    \"totalprice\": {{totalprice}},\n    \"depositpaid\": {{depositpaid}},\n    \"bookingdates\": {\n        \"checkin\": \"{{checkin}}\",\n        \"checkout\": \"{{checkout}}\"\n    },\n    \"additionalneeds\": \"{{additionalneeds}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Read it back",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const row = pm.iterationData.toObject();",
+              "pm.test(`[${row.case}] stored booking can be read back`, () => {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().lastname).to.eql(row.lastname);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/booking/{{bookingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "booking",
+            "{{bookingId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Delete it (cleanup)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const row = pm.iterationData.toObject();",
+              "pm.test(`[${row.case}] cleanup: booking deleted`, () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "token={{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/booking/{{bookingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "booking",
+            "{{bookingId}}"
+          ]
+        }
+      }
+    }
+  ]
+}

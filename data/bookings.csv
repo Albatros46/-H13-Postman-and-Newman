@@ -1,0 +1,10 @@
+case,firstname,lastname,totalprice,depositpaid,checkin,checkout,additionalneeds,expectedStatus,expectedPrice,note
+typical booking,Anna,Schmidt,250,true,2026-12-01,2026-12-05,Breakfast,200,250,
+deposit not paid,Jonas,Weber,180,false,2026-12-10,2026-12-12,Late checkout,200,180,
+free booking (price 0),Lena,Fischer,0,true,2026-12-15,2026-12-16,,200,0,
+one-night stay,Tom,Becker,95,true,2027-01-01,2027-01-02,Parking,200,95,
+German umlauts,Jürgen,Müller-Groß,320,true,2027-01-10,2027-01-14,Frühstück,200,320,
+Turkish characters,Çağrı,Öztürk,410,false,2027-02-01,2027-02-03,Kahvaltı,200,410,
+long name (60 chars),Maximilianmaximilianmaximilianmaximilianmaximilianmaximilian,Lang,150,true,2027-02-10,2027-02-11,,200,150,
+large price (above 32-bit int),Big,Spender,2147483648,true,2027-03-01,2027-03-31,Suite,200,2147483648,
+decimal price,Clara,Decimal,99.99,true,2027-04-01,2027-04-02,,200,99,[KNOWN BUG BR-07] decimal price 99.99 is stored as 99

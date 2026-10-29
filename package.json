@@ -1,0 +1,19 @@
+{
+  "name": "restful-booker-postman",
+  "version": "1.0.0",
+  "description": "API tests for Restful Booker with Postman collections, run by Newman (CLI, HTML and JUnit reports) in GitHub Actions",
+  "private": true,
+  "scripts": {
+    "test": "node scripts/run.js",
+    "test:api": "node scripts/run.js api",
+    "test:data": "node scripts/run.js data"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "newman": "6.2.3",
+    "newman-reporter-htmlextra": "1.23.1"
+  },
+  "license": "MIT"
+}
